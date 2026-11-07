@@ -1,0 +1,7 @@
+# Python >= 3.10. Install a CUDA-matched torch >= 2.4 separately.
+# Dependencies used by the retained training, inference and preprocessing code.
+numpy>=1.24,<3
+Pillow>=10.0
+opencv-python>=4.8
+scikit-image>=0.21
+mediapipe>=0.10
