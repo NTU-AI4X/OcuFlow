@@ -1,48 +1,56 @@
 # OcuFlow
 
-Eyeglass reflection removal with three-stage training, batch inference, and single-image multi-face inference.
+Official PyTorch implementation of **[Seeing Through the Glare: A Multi-Source Benchmark and Ocular-Adaptive Pixel MeanFlow for Eyeglass Reflection Removal](https://arxiv.org/abs/2610.10703)**.
+
+**[Paper](https://arxiv.org/abs/2610.10703)** | **[PDF](https://arxiv.org/pdf/2610.10703)** | **[Pretrained Model](https://drive.google.com/file/d/1ca8_ulcuA6URjKy5syMvkGhsibbjV6NF/view?usp=sharing)**
+
+OcuFlow is an ocular-adaptive pixel MeanFlow (pMF) framework for eyeglass reflection removal. It combines geometry-adaptive representations, one-step restoration, and native-resolution frequency-preserving synthesis to remove reflections while preserving facial and ocular details.
+
+This repository provides three-stage training, batch inference, and single-image multi-face inference.
 
 ## Setup
 
-Use Python 3.10+ and PyTorch 2.4+ with a CUDA build compatible with your GPU. The batch example below uses BF16 and requires a GPU with BF16 support.
+Use Python 3.10+ and PyTorch 2.4+ with a CUDA build compatible with your GPU. BF16 requires a supported GPU.
 
 ```bash
-cd /home/liutao/video/RR/OcuFlow
+cd OcuFlow
 python -m pip install 'torch>=2.4'
 python -m pip install -r requirements.txt
 ```
 
-## Project and Example Files
+## Project Structure
 
 ```text
 OcuFlow/
-├── train.py                        # Three-stage training
-├── infer.py                        # Single-image / batch inference
-├── infer_single_multiface.py        # Multi-face inference
-├── prepare_geometry.py             # Geometry preprocessing
-├── prepare_grid.py                 # Adaptive grid preprocessing
-├── models/                         # Model components
-├── weights/checkpoint_best.pt
-├── assets/face_landmarker.task
+├── train.py                     # Three-stage training
+├── infer.py                     # Single-image / batch inference
+├── infer_single_multiface.py    # Multi-face inference
+├── prepare_geometry.py          # Geometry preprocessing
+├── prepare_grid.py              # Adaptive grid preprocessing
+├── models/                      # Model components
+├── weights/
+│   └── checkpoint_best.pt
+├── assets/
+│   └── face_landmarker.task
 └── examples/
     ├── test_mini/
     │   ├── pub_000654/
-    │   │   ├── glare.png       # Input
-    │   │   └── clean.png       # Reference; not required for inference
+    │   │   ├── glare.png
+    │   │   └── clean.png
     │   └── ...
-    ├── output/                # Batch predictions
-    └── predict/               # Single-image prediction
+    ├── output/
+    └── predict/
 ```
 
-Run the following commands from the project directory. The checkpoint and face detection asset must be present at the paths above.
+Run the following commands from the project directory. The trained checkpoint and face detection asset must be available at the specified paths.
 
 ## Model Weights
 
-The trained OcuFlow model checkpoint is available on Google Drive:
+Download the trained OcuFlow checkpoint:
 
 **[Download checkpoint_best.pt (Google Drive)](https://drive.google.com/file/d/1ca8_ulcuA6URjKy5syMvkGhsibbjV6NF/view?usp=sharing)**
 
-Download the checkpoint and place it in the `weights/` directory:
+Place it under `weights/`:
 
 ```text
 OcuFlow/
@@ -50,13 +58,17 @@ OcuFlow/
     └── checkpoint_best.pt
 ```
 
-The checkpoint is hosted separately because it exceeds GitHub's regular file size limit.
+| File | Purpose |
+|---|---|
+| `checkpoint_best.pt` | Full trained OcuFlow model for inference |
+| `pMF-B-16.pt` | Pretrained pMF initialization for training |
+| `checkpoint_latest.pt` | Training state for resuming |
 
-After downloading the checkpoint, you can run inference using `--checkpoint weights/checkpoint_best.pt`.
+**Note:** `pMF-B-16.pt` cannot replace the full inference checkpoint. Keep `assets/face_landmarker.task` available for geometry preprocessing and online face detection.
 
-The pretrained `pMF-B-16.pt` checkpoint is used for training initialization and cannot replace the full inference checkpoint.
+## Quick Start
 
-## Quick Start: Batch Inference
+### Batch Inference
 
 ```bash
 python infer.py \
@@ -72,9 +84,9 @@ python infer.py \
   --grid_solver fast
 ```
 
-Finds `glare.png` recursively and saves each prediction as `examples/output/<sample>/pred.png`.
+The script recursively finds `glare.png` and saves predictions as `examples/output/<sample>/pred.png`.
 
-## Quick Start: Single-Image Inference
+### Single-Image Inference
 
 ```bash
 python infer.py \
@@ -83,34 +95,45 @@ python infer.py \
   --output examples/predict/pred.png
 ```
 
-The prediction is saved to `examples/predict/pred.png`. For all available options, run `python infer.py --help`.
+The result is saved to `examples/predict/pred.png`.
 
-## Weights
+Only `glare.png` is required for inference. `clean.png` is an optional reference image.
 
-Place separately obtained weights in `weights/`:
+### Multi-Face Inference
 
-| File | Purpose |
-| --- | --- |
-| `checkpoint_best.pt` | Full trained OcuFlow model for inference |
-| `pMF-B-16.pt` | Pretrained PMF initialization for training |
-| `checkpoint_latest.pt` | Full training state for resuming a run; saved in the training output directory |
+For an image containing multiple faces:
 
-Download links will be added here. `pMF-B-16.pt` is an initialization checkpoint and cannot replace the full inference checkpoint. Keep `assets/face_landmarker.task` available for geometry preprocessing and online face detection.
+```bash
+python infer_single_multiface.py \
+  --input /path/to/group_photo.png \
+  --checkpoint weights/checkpoint_best.pt \
+  --output examples/predict/group_photo_pred.png \
+  --max_faces 8 \
+  --force_redetect \
+  --model_asset_path assets/face_landmarker.task \
+  --amp bf16
+```
+
+Faces share a fixed token budget. Standard inference reuses geometry caches when available and otherwise performs online detection.
+
+Use `--force_redetect` to regenerate detections or `--strict_geometry_cache` for strict cache validation.
 
 ## Dataset
 
-The current dataset is located at `/home/liutao/video/RR/data`. Each sample has its own directory:
+Our paper introduces **OcuBench**, a multi-source eyeglass reflection removal benchmark containing 10,280 synthetic pairs, 732 real-input pseudo-pairs, and 458 independent real-world test images.
+
+The current training dataset is organized as follows:
 
 ```text
 data/
 ├── train/
 │   ├── syn_000001/
-│   │   ├── glare.png       # Input with reflections
-│   │   ├── clean.png       # Paired clean target
-│   │   ├── prompt.txt      # Optional accompanying text
-│   │   ├── mask.png        # Required for samples used in training-time validation
-│   │   ├── eye_prior.png   # Generated by prepare_geometry.py
-│   │   └── face_meta.json  # Generated by prepare_geometry.py
+│   │   ├── glare.png
+│   │   ├── clean.png
+│   │   ├── prompt.txt
+│   │   ├── mask.png
+│   │   ├── eye_prior.png
+│   │   └── face_meta.json
 │   └── pub_000001/
 │       └── ...
 ├── test_real/
@@ -123,36 +146,53 @@ data/
         └── clean.png
 ```
 
-Only `glare.png` is required for inference. `clean.png` is the paired training target or evaluation reference; `prompt.txt` is not required by the inference commands.
+- `glare.png`: Input with eyeglass reflections.
+- `clean.png`: Paired clean target or evaluation reference.
+- `prompt.txt`: Optional accompanying text.
+- `mask.png`: Required for samples selected for training-time validation.
+- `eye_prior.png` and `face_meta.json`: Generated by geometry preprocessing.
 
-By default, training holds out 16 `syn_` and 16 `pub_` samples from `train` for validation. Each group must have more than 16 candidates, and selected samples need a valid `mask.png` containing both masked and unmasked pixels. Adjust the split with `--synthetic_prefix`, `--real_prefix`, `--val_synthetic_count`, and `--val_real_count`. If your dataset has no masks, disable validation and early stopping with `--val_every 0 --early_stop_patience 0`; this also disables generation of `checkpoint_best.pt`.
+By default, training holds out 16 `syn_` and 16 `pub_` samples for validation. Each group must contain more than 16 candidates, and selected samples need valid masks containing both masked and unmasked pixels.
+
+Adjust the split using `--synthetic_prefix`, `--real_prefix`, `--val_synthetic_count`, and `--val_real_count`.
+
+For datasets without validation masks, disable validation and early stopping with `--val_every 0 --early_stop_patience 0`.
 
 ## Preprocessing
 
-Set paths from the project directory, then generate geometry priors and the adaptive grid cache in that order:
+Generate geometry priors and adaptive grid caches before training:
 
 ```bash
 DATA=/home/liutao/video/RR/data
 RUNS=outputs/train
 GRID="$RUNS/grid_cache"
+
 mkdir -p "$RUNS"
 
+# Geometry preprocessing
 python prepare_geometry.py \
   --dataset_root "$DATA" \
   --splits train test_real test_syn \
   --model_asset_path assets/face_landmarker.task
 
+# Adaptive grid preprocessing
 python prepare_grid.py \
   --data_root "$DATA" \
   --splits train test_real test_syn \
   --output "$GRID"
 ```
 
-For training only, use `--splits train` in both commands. If using the merged `test` directory instead, replace `test_real test_syn` with `test` in both commands. Regenerate caches after changing input images or geometry settings; `prepare_geometry.py --overwrite` replaces existing geometry files.
+For training only, use `--splits train` in both commands. If using a merged `test` directory, replace `test_real test_syn` with `test`.
+
+Regenerate caches after changing images or geometry settings. Use `prepare_geometry.py --overwrite` to replace existing geometry files.
 
 ## Training
 
-A single run performs PMF training, renderer gate warm-up, and joint fine-tuning:
+OcuFlow uses three-stage training:
+
+1. **pMF training:** Learn reflection removal with pixel MeanFlow.
+2. **Renderer gate warm-up:** Initialize the detail-preserving renderer.
+3. **Joint fine-tuning:** Jointly optimize the restoration pipeline.
 
 ```bash
 python train.py \
@@ -170,33 +210,51 @@ python train.py \
   --precision bf16
 ```
 
-For data without validation masks, append `--val_every 0 --early_stop_patience 0` to this command. If PMF initialization weights are unavailable, omit `--init_weights` to train from random initialization; this changes the pretrained experimental setup.
+Training saves `checkpoint_latest.pt`, validation-selected `checkpoint_best.pt` (when validation is enabled), and logs/visualizations in the output directory.
 
-Training saves `checkpoint_latest.pt`, validation-selected `checkpoint_best.pt` when validation is enabled, and logs/visualizations under the specified output directory. Validation and early stopping are enabled by default.
-
-To resume, repeat the same training command and settings, replacing `--init_weights weights/pMF-B-16.pt` with:
+To resume training, replace `--init_weights` with:
 
 ```bash
-  --resume "$RUNS/final_full_nature/checkpoint_latest.pt"
+--resume "$RUNS/final_full_nature/checkpoint_latest.pt"
 ```
 
-Use a trained checkpoint with `--checkpoint` in the inference examples above. On devices without BF16 support, use `--precision fp32` for training and `--amp off` for inference. CPU inference can use `--device cpu --amp off --patch_backend pil`.
+If pretrained pMF weights are unavailable, omit `--init_weights` to train from random initialization.
 
-## Multi-Face Inference
-
-For a single image containing multiple faces:
+For datasets without validation masks, append:
 
 ```bash
-python infer_single_multiface.py \
-  --input /path/to/group_photo.png \
-  --checkpoint weights/checkpoint_best.pt \
-  --output examples/predict/group_photo_pred.png \
-  --max_faces 8 \
-  --force_redetect \
-  --model_asset_path assets/face_landmarker.task \
-  --amp bf16
+--val_every 0 --early_stop_patience 0
 ```
 
-Faces share a fixed token budget. Standard inference reuses geometry caches when available and otherwise performs online detection. Use `--force_redetect` to regenerate detections or `--strict_geometry_cache` for strict cache validation.
+This disables validation, early stopping, and generation of `checkpoint_best.pt`.
 
-For all options, run `python train.py --help`, `python infer.py --help`, or `python infer_single_multiface.py --help`.
+## Hardware Notes
+
+- **BF16 GPU:** Use `--precision bf16` for training and `--amp bf16` for inference.
+- **Without BF16:** Use `--precision fp32` for training and `--amp off` for inference.
+- **CPU inference:** Use `--device cpu --amp off --patch_backend pil`.
+
+For all available options:
+
+```bash
+python train.py --help
+python infer.py --help
+python infer_single_multiface.py --help
+```
+
+## Citation
+
+If you find OcuFlow useful for your research, please cite our paper:
+
+```bibtex
+@misc{liu2026seeing,
+  title={Seeing Through the Glare: A Multi-Source Benchmark and Ocular-Adaptive Pixel MeanFlow for Eyeglass Reflection Removal},
+  author={Tao Liu and Youwei Pang and Kailai Zhou and Jiaming Zuo and Hanqi Liu and Wei Ji and Peng-Tao Jiang and Xiaofeng Liu and Weisi Lin and Xiaoqi Zhao},
+  year={2026},
+  eprint={2610.10703},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2610.10703}
+}
+```
+
