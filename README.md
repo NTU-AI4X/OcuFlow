@@ -1,8 +1,17 @@
-# OcuFlow
+<div align="center">
 
-Official PyTorch implementation of **[Seeing Through the Glare: A Multi-Source Benchmark and Ocular-Adaptive Pixel MeanFlow for Eyeglass Reflection Removal](https://arxiv.org/abs/2610.10703)**.
+<h1>OcuFlow</h1>
 
-**[Paper](https://arxiv.org/abs/2610.10703)** | **[PDF](https://arxiv.org/pdf/2610.10703)** | **[Pretrained Model](https://drive.google.com/file/d/1ca8_ulcuA6URjKy5syMvkGhsibbjV6NF/view?usp=sharing)**
+**Seeing Through the Glare: A Multi-Source Benchmark and Ocular-Adaptive Pixel MeanFlow for Eyeglass Reflection Removal**
+
+[![arXiv](https://img.shields.io/badge/arXiv-2610.10703-b31b1b?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2610.10703)
+[![PDF](https://img.shields.io/badge/📄%20Paper-PDF-red?style=flat-square)](https://arxiv.org/pdf/2610.10703)
+[![Pretrained Model](https://img.shields.io/badge/🤗%20Pretrained-Model-ffd21e?style=flat-square)](https://drive.google.com/file/d/1ca8_ulcuA6URjKy5syMvkGhsibbjV6NF/view?usp=sharing)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/NTU-AI4X/OcuFlow?style=flat-square)](https://github.com/NTU-AI4X/OcuFlow/stargazers)
+
+<img src="./assets/teaser.png" width="90%"/>
+</div>
 
 OcuFlow is an ocular-adaptive pixel MeanFlow (pMF) framework for eyeglass reflection removal. It combines geometry-adaptive representations, one-step restoration, and native-resolution frequency-preserving synthesis to remove reflections while preserving facial and ocular details.
 
